@@ -27,10 +27,12 @@ import eu.kanade.tachiyomi.source.model.SManga
 import eu.kanade.tachiyomi.source.model.UpdateStrategy
 import eu.kanade.tachiyomi.source.online.ParsedHttpSource
 import eu.kanade.tachiyomi.util.asJsoup
+import kotlin.text.RegexOption
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.Response
+import org.json.JSONObject
 import org.jsoup.nodes.Document
 import org.jsoup.nodes.Element
 import rx.Observable
@@ -252,11 +254,34 @@ open class NHentai(
     override fun chapterListSelector() = throw UnsupportedOperationException("Not used")
 
     override fun pageListParse(document: Document): List<Page> {
-        val script = document.select("script:containsData(media_server)").first()!!.data()
-        val mediaServer = Regex("""media_server\s*:\s*(\d+)""").find(script)?.groupValues!![1]
+        parseGallery(document)?.let { (mediaId, pageTypes, imageCdn) ->
+            // Use the CDN from image_cdn_urls if available, otherwise default to i.nhentai.net
+            val cdnHost = imageCdn ?: "i.nhentai.net"
+
+            return pageTypes.mapIndexed { index, type ->
+                val imageUrl = "https://$cdnHost/galleries/$mediaId/${index + 1}.${type.toExtension()}"
+                Page(index, "", imageUrl)
+            }
+        }
+
+        // Fallback to legacy media_server parsing and thumbnail transformation
+        val script = document.selectFirst("script:containsData(media_server)")?.data()
+        val mediaServer = script?.let { Regex("""media_server\s*:\s*(\d+)""").find(it)?.groupValues?.get(1) }
 
         return document.select("div.thumbs a > img").mapIndexed { i, img ->
-            Page(i, "", img.attr("abs:data-src").replace("t.nh", "i.nh").replace("t\\d+.nh".toRegex(), "i$mediaServer.nh").replace("t.", "."))
+            val thumbUrl = img.attr("abs:data-src")
+            val imageUrl = if (mediaServer != null) {
+                thumbUrl
+                    .replace("t.nh", "i.nh")
+                    .replace("t\\d+.nh".toRegex(), "i$mediaServer.nh")
+                    .replace("t.", ".")
+            } else {
+                thumbUrl
+                    .replace("//t", "//i")
+                    .replace(Regex("/(\\d+)t\\."), "/$1.")
+            }
+
+            Page(i, "", imageUrl)
         }
     }
 
@@ -315,8 +340,75 @@ open class NHentai(
 
     private inline fun <reified T> Iterable<*>.findInstance() = find { it is T } as? T
 
+    private fun parseGallery(document: Document): Triple<String, List<String>, String?>? {
+        val galleryScript = document.selectFirst("script:containsData(_gallery)")?.data() ?: return null
+        val galleryJson = galleryRegex.find(galleryScript)?.groupValues?.get(1) ?: return null
+        // Unescape the JavaScript string literal to get valid JSON
+        val unescapedJson = unescapeJavaScript(galleryJson)
+        val gallery = JSONObject(unescapedJson)
+
+        val mediaId = gallery.getString("media_id")
+        val pageTypes = gallery.getJSONObject("images").getJSONArray("pages").let { pages ->
+            (0 until pages.length()).map { idx: Int -> pages.getJSONObject(idx).getString("t") }
+        }
+
+        val imageCdn = parseImageCdn(document)
+
+        return Triple(mediaId, pageTypes, imageCdn)
+    }
+
+    private fun unescapeJavaScript(input: String): String {
+        val sb = StringBuilder()
+        var i = 0
+        while (i < input.length) {
+            if (input[i] == '\\' && i + 1 < input.length) {
+                when (input[i + 1]) {
+                    'u' -> {
+                        // Unicode escape: \uXXXX
+                        if (i + 5 < input.length) {
+                            val hex = input.substring(i + 2, i + 6)
+                            try {
+                                sb.append(hex.toInt(16).toChar())
+                                i += 6
+                                continue
+                            } catch (e: NumberFormatException) {
+                                // Invalid hex, treat as literal
+                            }
+                        }
+                    }
+                    'n' -> { sb.append('\n'); i += 2; continue }
+                    't' -> { sb.append('\t'); i += 2; continue }
+                    'r' -> { sb.append('\r'); i += 2; continue }
+                    'b' -> { sb.append('\b'); i += 2; continue }
+                    'f' -> { sb.append('\u000C'); i += 2; continue }
+                    '"' -> { sb.append('"'); i += 2; continue }
+                    '\'' -> { sb.append('\''); i += 2; continue }
+                    '\\' -> { sb.append('\\'); i += 2; continue }
+                    '/' -> { sb.append('/'); i += 2; continue }
+                }
+            }
+            sb.append(input[i])
+            i++
+        }
+        return sb.toString()
+    }
+
+    private fun parseImageCdn(document: Document): String? {
+        val cdnScript = document.selectFirst("script:containsData(_n_app)")?.data() ?: return null
+        val match = Regex("""image_cdn_urls\s*:\s*\[\s*"([^"]+)"""").find(cdnScript) ?: return null
+        return match.groupValues[1]
+    }
+
+    private fun String.toExtension(): String = when (this) {
+        "p" -> "png"
+        "g" -> "gif"
+        "w" -> "webp"
+        else -> "jpg"
+    }
+
     companion object {
         const val PREFIX_ID_SEARCH = "id:"
         private const val TITLE_PREF = "Display manga title as:"
+        private val galleryRegex = Regex("""_gallery\s*=\s*JSON\.parse\("(.+?)"\)""", RegexOption.DOT_MATCHES_ALL)
     }
 }
