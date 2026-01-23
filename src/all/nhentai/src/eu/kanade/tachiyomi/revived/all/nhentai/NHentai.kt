@@ -219,7 +219,7 @@ open class NHentai(
 
         return SManga.create().apply {
             title = if (displayFullTitle) fullTitle else fullTitle.shortenTitle()
-            thumbnail_url = document.select("#cover > a > img").attr("data-src")
+            thumbnail_url = document.select("#cover > a > img").attr("abs:data-src")
             status = SManga.COMPLETED
             artist = getArtists(document)
             author = artist
