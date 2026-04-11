@@ -219,7 +219,7 @@ open class NHentai(
 
         return SManga.create().apply {
             title = if (displayFullTitle) fullTitle else fullTitle.shortenTitle()
-            thumbnail_url = document.select("#cover > a > img").attr("abs:data-src")
+            thumbnail_url = document.selectFirst("#cover > a > img")?.let(::getAbsImageUrl).orEmpty()
             status = SManga.COMPLETED
             artist = getArtists(document)
             author = artist
@@ -269,7 +269,7 @@ open class NHentai(
         val mediaServer = script?.let { Regex("""media_server\s*:\s*(\d+)""").find(it)?.groupValues?.get(1) }
 
         return document.select("div.thumbs a > img").mapIndexed { i, img ->
-            val thumbUrl = img.attr("abs:data-src")
+            val thumbUrl = getAbsImageUrl(img)
             val imageUrl = if (mediaServer != null) {
                 thumbUrl
                     .replace("t.nh", "i.nh")
@@ -397,6 +397,16 @@ open class NHentai(
         val cdnScript = document.selectFirst("script:containsData(_n_app)")?.data() ?: return null
         val match = Regex("""image_cdn_urls\s*:\s*\[\s*"([^"]+)"""").find(cdnScript) ?: return null
         return match.groupValues[1]
+    }
+
+    private fun getAbsImageUrl(img: Element): String {
+        val dataSrc = img.attr("abs:data-src")
+        if (dataSrc.isNotBlank()) return dataSrc
+
+        val src = img.attr("abs:src")
+        if (src.isNotBlank()) return src
+
+        return ""
     }
 
     private fun String.toExtension(): String = when (this) {

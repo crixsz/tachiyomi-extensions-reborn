@@ -1,6 +1,7 @@
 package eu.kanade.tachiyomi.revived.all.nhentai
 
 import java.text.SimpleDateFormat
+import java.util.Locale
 import org.jsoup.nodes.Document
 import org.jsoup.nodes.Element
 
@@ -51,13 +52,47 @@ object NHUtils {
     }
 
     fun getNumPages(document: Document): String {
-        return document.select("#tags > div:nth-child(8) > span > a .name").first()!!.cleanTag()
+        val pagesFromField = document
+            .selectFirst("#tags .tag-container.field-name:matchesOwn((?i)^\\s*Pages:?\\s*$)")
+            ?.nextElementSibling()
+            ?.selectFirst("a .name")
+            ?.cleanTag()
+
+        val pagesFromLegacySelector = document
+            .select("#tags > div:nth-child(8) > span > a .name")
+            .firstOrNull()
+            ?.cleanTag()
+
+        return pagesFromField
+            ?: pagesFromLegacySelector
+            ?: "Unknown"
     }
 
     fun getTime(document: Document): Long {
-        val timeString = document.toString().substringAfter("datetime=\"").substringBefore("\">").replace("T", " ")
+        val timeString = document
+            .selectFirst("#tags .tag-container.field-name:matchesOwn((?i)^\\s*Uploaded:?\\s*$)")
+            ?.nextElementSibling()
+            ?.selectFirst("time[datetime]")
+            ?.attr("datetime")
+            ?.takeIf { it.isNotBlank() }
+            ?: document.selectFirst("time[datetime]")?.attr("datetime").orEmpty()
 
-        return SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSSSSSZ").parse(timeString)?.time ?: 0L
+        if (timeString.isBlank()) return 0L
+
+        val formats = listOf(
+            "yyyy-MM-dd'T'HH:mm:ss.SSSSSSXXX",
+            "yyyy-MM-dd'T'HH:mm:ss.SSSSSSZ",
+            "yyyy-MM-dd'T'HH:mm:ss.SSSXXX",
+            "yyyy-MM-dd'T'HH:mm:ss.SSSZ",
+            "yyyy-MM-dd'T'HH:mm:ssXXX",
+            "yyyy-MM-dd'T'HH:mm:ssZ",
+        )
+
+        return formats.firstNotNullOfOrNull { pattern ->
+            runCatching {
+                SimpleDateFormat(pattern, Locale.US).parse(timeString)?.time
+            }.getOrNull()
+        } ?: 0L
     }
 
     private fun Element.cleanTag(): String = text().replace(Regex("\\(.*\\)"), "").trim()
