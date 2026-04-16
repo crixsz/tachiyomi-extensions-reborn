@@ -2,6 +2,7 @@ package eu.kanade.tachiyomi.revived.all.nhentai
 
 import android.app.Application
 import android.content.SharedPreferences
+import android.util.Log
 import androidx.preference.ListPreference
 import androidx.preference.PreferenceScreen
 import eu.kanade.tachiyomi.lib.randomua.addRandomUAPreferenceToScreen
@@ -105,9 +106,7 @@ open class NHentai(
         title = element.select("a > div").text().replace("\"", "").let {
             if (displayFullTitle) it.trim() else it.shortenTitle()
         }
-        thumbnail_url = element.select(".cover img").first()!!.let { img ->
-            if (img.hasAttr("data-src")) img.attr("abs:data-src") else img.attr("abs:src")
-        }
+        thumbnail_url = element.select(".cover img").first()?.let(::getAbsImageUrl).orEmpty()
     }
 
     override fun latestUpdatesNextPageSelector() = "#content > section.pagination > a.next"
@@ -235,16 +234,19 @@ open class NHentai(
         }
     }
 
-    override fun chapterListRequest(manga: SManga): Request = GET("$baseUrl${manga.url}", headers)
+    override fun chapterListRequest(manga: SManga): Request = GET("$baseUrl${manga.url}?reader=v2", headers)
 
     override fun chapterListParse(response: Response): List<SChapter> {
         val document = response.asJsoup()
+        Log.i(TAG, "chapterListParse request=${response.request.url}")
         return listOf(
             SChapter.create().apply {
                 name = "Chapter"
                 scanlator = getGroups(document)
                 date_upload = getTime(document)
-                setUrlWithoutDomain(response.request.url.encodedPath)
+                // Changing the chapter URL forces Mihon to rebuild stale cached page lists
+                // that were generated from the old broken thumbnail-derived image URLs.
+                setUrlWithoutDomain(response.request.url.encodedPath + "?reader=v2")
             },
         )
     }
@@ -254,12 +256,22 @@ open class NHentai(
     override fun chapterListSelector() = throw UnsupportedOperationException("Not used")
 
     override fun pageListParse(document: Document): List<Page> {
+        parseGalleryApi(document)?.let { (pagePaths, imageCdn) ->
+            val cdnHost = imageCdn ?: "i.nhentai.net"
+            Log.i(TAG, "pageListParse using gallery API, pages=${pagePaths.size}, cdn=$cdnHost")
+            return pagePaths.mapIndexed { index, path ->
+                val imageUrl = "https://$cdnHost/$path".normalizeDuplicateExtension()
+                Page(index, "", imageUrl)
+            }
+        }
+
         parseGallery(document)?.let { (mediaId, pageTypes, imageCdn) ->
             // Use the CDN from image_cdn_urls if available, otherwise default to i.nhentai.net
             val cdnHost = imageCdn ?: "i.nhentai.net"
+            Log.i(TAG, "pageListParse using legacy _gallery parser, pages=${pageTypes.size}, cdn=$cdnHost")
 
             return pageTypes.mapIndexed { index, type ->
-                val imageUrl = "https://$cdnHost/galleries/$mediaId/${index + 1}.${type.toExtension()}"
+                val imageUrl = "https://$cdnHost/galleries/$mediaId/${index + 1}.${type.toExtension()}".normalizeDuplicateExtension()
                 Page(index, "", imageUrl)
             }
         }
@@ -267,6 +279,7 @@ open class NHentai(
         // Fallback to legacy media_server parsing and thumbnail transformation
         val script = document.selectFirst("script:containsData(media_server)")?.data()
         val mediaServer = script?.let { Regex("""media_server\s*:\s*(\d+)""").find(it)?.groupValues?.get(1) }
+        Log.i(TAG, "pageListParse using thumbnail fallback, mediaServer=${mediaServer ?: "none"}")
 
         return document.select("div.thumbs a > img").mapIndexed { i, img ->
             val thumbUrl = getAbsImageUrl(img)
@@ -281,7 +294,7 @@ open class NHentai(
                     .replace(Regex("/(\\d+)t\\."), "/$1.")
             }
 
-            Page(i, "", imageUrl)
+            Page(i, "", imageUrl.normalizeDuplicateExtension())
         }
     }
 
@@ -399,15 +412,34 @@ open class NHentai(
         return match.groupValues[1]
     }
 
+    private fun parseGalleryApi(document: Document): Pair<List<String>, String?>? {
+        val script = document.selectFirst("script[data-url^=/api/v2/galleries/]")?.data() ?: return null
+        val responseJson = JSONObject(script)
+        if (responseJson.optInt("status") != 200) return null
+
+        val gallery = JSONObject(responseJson.getString("body"))
+        val pages = gallery.optJSONArray("pages") ?: return null
+        val pagePaths = (0 until pages.length()).mapNotNull { idx ->
+            pages.optJSONObject(idx)?.optString("path")?.takeIf(String::isNotBlank)
+        }
+
+        if (pagePaths.isEmpty()) return null
+
+        return Pair(pagePaths, parseImageCdn(document))
+    }
+
     private fun getAbsImageUrl(img: Element): String {
         val dataSrc = img.attr("abs:data-src")
-        if (dataSrc.isNotBlank()) return dataSrc
+        if (dataSrc.isNotBlank()) return dataSrc.normalizeDuplicateExtension()
 
         val src = img.attr("abs:src")
-        if (src.isNotBlank()) return src
+        if (src.isNotBlank()) return src.normalizeDuplicateExtension()
 
         return ""
     }
+
+    private fun String.normalizeDuplicateExtension(): String =
+        replace(Regex("""\.(jpg|jpeg|png|gif|webp)\.\1(?=($|[?#]))""", RegexOption.IGNORE_CASE), ".$1")
 
     private fun String.toExtension(): String = when (this) {
         "p" -> "png"
@@ -417,6 +449,7 @@ open class NHentai(
     }
 
     companion object {
+        private const val TAG = "NHentai"
         const val PREFIX_ID_SEARCH = "id:"
         private const val TITLE_PREF = "Display manga title as:"
         private val galleryRegex = Regex("""_gallery\s*=\s*JSON\.parse\("(.+?)"\)""", RegexOption.DOT_MATCHES_ALL)
