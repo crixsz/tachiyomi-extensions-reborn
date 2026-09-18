@@ -109,7 +109,7 @@ open class NHentai(
         thumbnail_url = element.select(".cover img").first()?.let(::getAbsImageUrl).orEmpty()
     }
 
-    override fun latestUpdatesNextPageSelector() = "#content > section.pagination > a.next"
+    override fun latestUpdatesNextPageSelector() = "#content section.pagination a.next"
 
     override fun popularMangaRequest(page: Int) = GET(if (nhLang.isBlank()) "$baseUrl/search/?q=\"\"&sort=popular&page=$page" else "$baseUrl/language/$nhLang/popular?page=$page", headers)
 
