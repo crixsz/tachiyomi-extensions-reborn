@@ -60,11 +60,21 @@ jobs:
           find src -path '*/build/outputs/apk/release/*.apk' -exec cp {} apk/ \;
           ls -l apk
 
-      - name: Read extension metadata
+      - name: Download extension inspector
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
-          INSPECTOR_LINK="$(curl -s "https://api.github.com/repos/tachiyomiorg/tachiyomi-extensions-inspector/releases/latest" | jq -r '.assets[0].browser_download_url')"
-          curl -L "$INSPECTOR_LINK" -o Inspector.jar
-          java -jar Inspector.jar "apk" "output.json" "tmp"
+          INSPECTOR_URL="$(curl -fsSL -H "Authorization: Bearer ${GH_TOKEN}" \
+            https://api.github.com/repos/tachiyomiorg/tachiyomi-extensions-inspector/releases/latest \
+            | jq -r '.assets[0].browser_download_url')"
+          if [ -z "$INSPECTOR_URL" ] || [ "$INSPECTOR_URL" = "null" ]; then
+            INSPECTOR_URL="https://github.com/tachiyomiorg/tachiyomi-extensions-inspector/releases/download/v1.4.2/Tachiyomi.Extensions.Inspector-v1.4.2-r1.jar"
+          fi
+          curl -fL "$INSPECTOR_URL" -o Inspector.jar
+          ls -l Inspector.jar
+
+      - name: Read extension metadata
+        run: java -jar Inspector.jar "apk" "output.json" "tmp"
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
