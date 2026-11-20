@@ -16,18 +16,23 @@ class Hentai2ReadActivity : Activity() {
         super.onCreate(savedInstanceState)
         val pathSegments = intent?.data?.pathSegments
         if (pathSegments != null) {
-            // TODO: filter standard paths
-            val id = pathSegments[0]
-            val mainIntent = Intent().apply {
-                action = "eu.kanade.tachiyomi.SEARCH"
-                putExtra("query", "${Hentai2Read.PREFIX_ID_SEARCH}$id")
-                putExtra("filter", packageName)
-            }
+            val id = pathSegments
+                .firstOrNull { it.firstOrNull()?.isDigit() == true }
+                ?.substringBefore('-')
+            if (id != null) {
+                val mainIntent = Intent().apply {
+                    action = "eu.kanade.tachiyomi.SEARCH"
+                    putExtra("query", "${Hentai2Read.PREFIX_ID_SEARCH}$id")
+                    putExtra("filter", packageName)
+                }
 
-            try {
-                startActivity(mainIntent)
-            } catch (e: ActivityNotFoundException) {
-                Log.e("Hentai2ReadActivity", e.toString())
+                try {
+                    startActivity(mainIntent)
+                } catch (e: ActivityNotFoundException) {
+                    Log.e("Hentai2ReadActivity", e.toString())
+                }
+            } else {
+                Log.e("Hentai2ReadActivity", "Could not parse URI from intent $intent")
             }
         } else {
             Log.e("Hentai2ReadActivity", "Could not parse URI from intent $intent")
