@@ -1,7 +1,6 @@
 package eu.kanade.tachiyomi.revived.en.multporn
 
 import eu.kanade.tachiyomi.network.GET
-import eu.kanade.tachiyomi.network.POST
 import eu.kanade.tachiyomi.network.asObservable
 import eu.kanade.tachiyomi.network.asObservableSuccess
 import eu.kanade.tachiyomi.source.model.Filter
@@ -13,23 +12,14 @@ import eu.kanade.tachiyomi.source.model.SManga
 import eu.kanade.tachiyomi.source.online.ParsedHttpSource
 import eu.kanade.tachiyomi.util.asJsoup
 import java.util.Locale
-import kotlinx.serialization.decodeFromString
-import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.JsonArray
-import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
-import okhttp3.FormBody
 import okhttp3.Headers
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
-import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.Request
 import okhttp3.Response
-import okhttp3.ResponseBody.Companion.toResponseBody
 import org.jsoup.nodes.Document
 import org.jsoup.nodes.Element
 import rx.Observable
 import rx.schedulers.Schedulers
-import uy.kohesive.injekt.injectLazy
 
 class Multporn : ParsedHttpSource() {
 
@@ -38,8 +28,6 @@ class Multporn : ParsedHttpSource() {
     override val baseUrl = "https://multporn.net"
     override val supportsLatest = true
 
-    private val json: Json by injectLazy()
-
     override fun headersBuilder(): Headers.Builder = Headers.Builder()
         .add("User-Agent", HEADER_USER_AGENT)
         .add("Content-Type", HEADER_CONTENT_TYPE)
@@ -47,35 +35,22 @@ class Multporn : ParsedHttpSource() {
     // Popular
 
     private fun buildPopularMangaRequest(page: Int, filters: FilterList = FilterList()): Request {
-        val body = FormBody.Builder()
-            .addEncoded("page", page.toString())
-            .addEncoded("view_name", "top")
-            .addEncoded("view_display_id", "page")
+        val url = "$baseUrl/best".toHttpUrlOrNull()!!.newBuilder()
+            .addQueryParameter("page", page.toString())
 
         (if (filters.isEmpty()) getFilterList(POPULAR_DEFAULT_SORT_BY_FILTER_STATE) else filters).forEach {
             when (it) {
-                is SortBySelectFilter -> body.addEncoded("sort_by", it.selected.uri)
-                is SortOrderSelectFilter -> body.addEncoded("sort_order", it.selected.uri)
-                is PopularTypeSelectFilter -> body.addEncoded("type", it.selected.uri)
+                is SortBySelectFilter -> url.addQueryParameter("sort_by", it.selected.uri)
+                is SortOrderSelectFilter -> url.addQueryParameter("sort_order", it.selected.uri)
+                is PopularTypeSelectFilter -> url.addQueryParameter("type", it.selected.uri)
                 else -> { }
             }
         }
 
-        return POST("$baseUrl/views/ajax", headers, body.build())
+        return GET(url.toString(), headers)
     }
 
     override fun popularMangaRequest(page: Int) = buildPopularMangaRequest(page - 1)
-
-    override fun popularMangaParse(response: Response): MangasPage {
-        val html = json.decodeFromString<JsonArray>(response.body.string())
-            .last { it.jsonObject["command"]!!.jsonPrimitive.content == "insert" }.jsonObject["data"]!!.jsonPrimitive.content
-
-        return super.popularMangaParse(
-            response.newBuilder()
-                .body(html.toResponseBody("text/html; charset=UTF-8".toMediaTypeOrNull()))
-                .build(),
-        )
-    }
 
     override fun popularMangaSelector() = ".masonry-item"
     override fun popularMangaNextPageSelector() = ".pager-next a"
@@ -128,7 +103,7 @@ class Multporn : ParsedHttpSource() {
     private fun buildSearchMangaRequest(page: Int, query: String, filtersArg: FilterList = FilterList()): Request {
         val url = "$baseUrl/search".toHttpUrlOrNull()!!.newBuilder()
             .addQueryParameter("page", page.toString())
-            .addQueryParameter("views_fulltext", query)
+            .addQueryParameter("search_api_views_fulltext", query)
 
         (if (filtersArg.isEmpty()) getFilterList(SEARCH_DEFAULT_SORT_BY_FILTER_STATE) else filtersArg).forEach {
             when (it) {
@@ -282,7 +257,12 @@ class Multporn : ParsedHttpSource() {
 
     override fun pageListParse(document: Document): List<Page> {
         return document.select(".jb-image img").mapIndexed { i, image ->
-            Page(i, imageUrl = image.attr("abs:src").replace("/styles/juicebox_2k/public", "").substringBefore("?"))
+            Page(
+                i,
+                imageUrl = image.attr("abs:src")
+                    .replace(Regex("/styles/[^/]+/public"), "")
+                    .substringBefore("?"),
+            )
         }
     }
 
@@ -368,19 +348,19 @@ class Multporn : ParsedHttpSource() {
 
     private fun getPopularTypeFilters() = listOf(
         URIFilter("Comics", "1"),
-        URIFilter("Hentai Manga", "2"),
-        URIFilter("Cartoon Pictures", "3"),
-        URIFilter("Hentai Pictures", "4"),
-        URIFilter("Rule 63", "10"),
-        URIFilter("Author Albums", "11"),
+        URIFilter("Hentai Manga", "3"),
+        URIFilter("Cartoon Pictures", "4"),
+        URIFilter("Hentai Pictures", "6"),
+        URIFilter("Rule 63", "12"),
+        URIFilter("Author Albums", "13"),
     )
 
     private fun getLatestTypeFilters() = listOf(
         URIFilter("Comics", "1"),
-        URIFilter("Hentai Manga", "2"),
-        URIFilter("Cartoon Pictures", "3"),
-        URIFilter("Hentai Pictures", "4"),
-        URIFilter("Author Albums", "10"),
+        URIFilter("Hentai Manga", "3"),
+        URIFilter("Cartoon Pictures", "4"),
+        URIFilter("Hentai Pictures", "6"),
+        URIFilter("Author Albums", "12"),
     )
 
     private fun getSearchTypeFilters() = listOf(
