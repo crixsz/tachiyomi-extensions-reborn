@@ -7,7 +7,20 @@ File(rootDir, "lib").eachDir {
     project(":lib-$libName").projectDir = File("lib/$libName")
 }
 
-if (System.getenv("CI") == null || System.getenv("CI_MODULE_GEN") == "true") {
+val explicitModules = System.getenv("CI_MODULES")
+
+if (!explicitModules.isNullOrBlank()) {
+    // Loads only the modules requested through CI_MODULES (comma separated lang/name).
+    // Works both locally and in CI.
+    explicitModules.split(",")
+        .map { it.trim() }
+        .filter { it.isNotEmpty() }
+        .forEach {
+            val parts = it.split("/")
+            require(parts.size == 2) { "CI_MODULES entry must look like lang/name: $it" }
+            loadIndividualExtension(parts[0], parts[1])
+        }
+} else if (System.getenv("CI") == null || System.getenv("CI_MODULE_GEN") == "true") {
     // Local development (full project build)
 
     include(":multisrc")
@@ -17,8 +30,8 @@ if (System.getenv("CI") == null || System.getenv("CI_MODULE_GEN") == "true") {
      * Add or remove modules to load as needed for local development here.
      * To generate multisrc extensions first, run the `:multisrc:generateExtensions` task first.
      */
-    loadAllIndividualExtensions()
-    loadAllGeneratedMultisrcExtensions()
+    loadIndividualExtension("all", "mangadex")
+    //loadAllGeneratedMultisrcExtensions()
     // loadIndividualExtension("all", "mangadex")
     // loadGeneratedMultisrcExtension("en", "guya")
 } else {

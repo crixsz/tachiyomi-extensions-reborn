@@ -1,0 +1,47 @@
+name: Upstream watch
+
+on:
+  schedule:
+    # Every Monday at 06:00 UTC
+    - cron: '0 6 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+env:
+  CI_MODULES: "all/nhentai,en/multporn"
+
+jobs:
+  check:
+    name: Check keiyoushi upstream
+    runs-on: ubuntu-latest
+    steps:
+      - name: Clone repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Collect upstream changes
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: python .github/scripts/check-upstream.py "$(date -u -d '7 days ago' +%Y-%m-%dT%H:%M:%SZ)" --output upstream-report.md
+
+      - name: Open or update issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [ ! -s upstream-report.md ]; then
+            echo "No upstream changes."
+            exit 0
+          fi
+          number="$(gh issue list --state open --search 'Upstream keiyoushi changes in:title' --json number --jq '.[0].number')"
+          if [ -n "$number" ]; then
+            gh issue comment "$number" --body-file upstream-report.md
+          else
+            gh issue create --title "Upstream keiyoushi changes" --body-file upstream-report.md
+          fi

@@ -1,8 +1,11 @@
 # ![app icon](./.github/readme-images/app-icon.png)Tachiyomi Extensions Archive
 
-
 > [!IMPORTANT]
 > **This repository has been archived and is only kept for historical purposes. Please migrate to this extension repo: https://github.com/keiyoushi/extensions**
+
+> [!NOTE]
+> This fork can publish its own extension repo (index.pb + app updates).
+> See [REPO.md](./REPO.md) for the setup and the URL to add in the app.
 
 
 ## Downloads
