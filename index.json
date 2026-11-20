@@ -46,6 +46,26 @@
         ]
       },
       {
+        "name": "Hentai2Read",
+        "packageName": "eu.kanade.tachiyomi.revived.en.hentai2read",
+        "resources": {
+          "apkUrl": "https://github.com/crixsz/tachiyomi-extensions-reborn/raw/repo/apk/tachiyomi-en.hentai2read-revived-v1.4.15-release.apk",
+          "iconUrl": "https://github.com/crixsz/tachiyomi-extensions-reborn/raw/repo/icon/eu.kanade.tachiyomi.revived.en.hentai2read.png"
+        },
+        "extensionLib": "1.4",
+        "versionCode": "15",
+        "versionName": "1.4.15",
+        "contentWarning": "CONTENT_WARNING_NSFW",
+        "sources": [
+          {
+            "id": "8314925449740051373",
+            "name": "Hentai2Read",
+            "language": "en",
+            "homeUrl": "https://hentai2read.com"
+          }
+        ]
+      },
+      {
         "name": "Multporn",
         "packageName": "eu.kanade.tachiyomi.revived.en.multporn",
         "resources": {
