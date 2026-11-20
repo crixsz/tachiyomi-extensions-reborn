@@ -1,0 +1,70 @@
+{
+  "name": "Reborn Extensions",
+  "badgeLabel": "RBN",
+  "signingKey": "ec5f36ddbeae4fde1c5c9c1484b1c9dfd9ca467f9dfe8cc2c0e2bd658f859656",
+  "contact": {
+    "website": "https://github.com/crixsz/tachiyomi-extensions-reborn"
+  },
+  "extensionList": {
+    "extensions": [
+      {
+        "name": "NHentai",
+        "packageName": "eu.kanade.tachiyomi.revived.all.nhentai",
+        "resources": {
+          "apkUrl": "https://github.com/crixsz/tachiyomi-extensions-reborn/raw/repo/apk/tachiyomi-all.nhentai-revived-v1.4.39-release.apk",
+          "iconUrl": "https://github.com/crixsz/tachiyomi-extensions-reborn/raw/repo/icon/eu.kanade.tachiyomi.revived.all.nhentai.png"
+        },
+        "extensionLib": "1.4",
+        "versionCode": "39",
+        "versionName": "1.4.39",
+        "contentWarning": "CONTENT_WARNING_NSFW",
+        "sources": [
+          {
+            "id": "3122156392225024195",
+            "name": "NHentai",
+            "language": "en",
+            "homeUrl": "https://nhentai.net"
+          },
+          {
+            "id": "4726175775739752699",
+            "name": "NHentai",
+            "language": "ja",
+            "homeUrl": "https://nhentai.net"
+          },
+          {
+            "id": "2203215402871965477",
+            "name": "NHentai",
+            "language": "zh",
+            "homeUrl": "https://nhentai.net"
+          },
+          {
+            "id": "7309872737163460316",
+            "name": "NHentai",
+            "language": "all",
+            "homeUrl": "https://nhentai.net"
+          }
+        ]
+      },
+      {
+        "name": "Multporn",
+        "packageName": "eu.kanade.tachiyomi.revived.en.multporn",
+        "resources": {
+          "apkUrl": "https://github.com/crixsz/tachiyomi-extensions-reborn/raw/repo/apk/tachiyomi-en.multporn-revived-v1.4.4-release.apk",
+          "iconUrl": "https://github.com/crixsz/tachiyomi-extensions-reborn/raw/repo/icon/eu.kanade.tachiyomi.revived.en.multporn.png"
+        },
+        "extensionLib": "1.4",
+        "versionCode": "4",
+        "versionName": "1.4.4",
+        "contentWarning": "CONTENT_WARNING_NSFW",
+        "sources": [
+          {
+            "id": "1483013328567191791",
+            "name": "Multporn",
+            "language": "en",
+            "homeUrl": "https://multporn.net"
+          }
+        ]
+      }
+    ]
+  }
+}
