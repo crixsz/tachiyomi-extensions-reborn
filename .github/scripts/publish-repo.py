@@ -42,6 +42,7 @@ OUTPUT_JSON = Path(os.environ.get("OUTPUT_JSON", ROOT / "output.json")).resolve(
 GITHUB_REPOSITORY = os.environ.get("GITHUB_REPOSITORY", "crixsz/tachiyomi-extensions-reborn")
 REPO_BRANCH = os.environ.get("REPO_BRANCH", "repo")
 REPO_DISPLAY_NAME = os.environ.get("REPO_DISPLAY_NAME", "Reborn Extensions")
+REPO_SHORT_NAME = os.environ.get("REPO_SHORT_NAME", "RBN")
 REPO_WEBSITE = os.environ.get("REPO_WEBSITE", f"https://github.com/{GITHUB_REPOSITORY}")
 SIGNING_KEY = os.environ.get(
     "SIGNING_KEY_FINGERPRINT",
@@ -249,6 +250,7 @@ def main() -> int:
                 "index_v2": f"{RAW_BASE}/index.pb",
                 "meta": {
                     "name": REPO_DISPLAY_NAME,
+                    "shortName": REPO_SHORT_NAME,
                     "website": REPO_WEBSITE,
                     "signingKeyFingerprint": SIGNING_KEY,
                 },

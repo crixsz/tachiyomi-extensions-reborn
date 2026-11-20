@@ -24,6 +24,16 @@ The URL to add in the app is:
 https://github.com/crixsz/tachiyomi-extensions-reborn/raw/repo/index.pb
 ```
 
+That is the repo-v2 URL for current Mihon. Older app forks (including this
+project's `mihon-forked`, which only accepts URLs ending in `/index.min.json`)
+must use:
+
+```
+https://github.com/crixsz/tachiyomi-extensions-reborn/raw/repo/index.min.json
+```
+
+Both formats are published from the same branch.
+
 In Mihon: **More → Settings → Browse → Extension repos → Add**, paste the URL, then
 open the **Extensions** tab and install.
 
