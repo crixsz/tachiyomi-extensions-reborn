@@ -11,7 +11,7 @@ permissions:
   issues: write
 
 env:
-  CI_MODULES: "all/nhentai,en/multporn"
+  CI_MODULES: "all/nhentai,en/hentai2read,en/multporn"
 
 jobs:
   check:

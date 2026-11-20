@@ -17,7 +17,7 @@ permissions:
 
 env:
   # Extensions published by this repo. Add or remove "lang/name" entries here.
-  CI_MODULES: "all/nhentai,en/multporn"
+  CI_MODULES: "all/nhentai,en/hentai2read,en/multporn"
   REPO_BRANCH: repo
 
 jobs:
